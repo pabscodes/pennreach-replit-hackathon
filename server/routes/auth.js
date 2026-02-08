@@ -85,6 +85,7 @@ router.get('/me', auth, async (req, res) => {
 
     const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     safeUser.hasHunterKey = !!user.hunterApiKey;
+    safeUser.hunterKeyMasked = user.hunterApiKey ? '••••••••' + user.hunterApiKey.slice(-4) : null;
     safeUser.hasGoogleAuth = !!user.googleAccessToken;
     safeUser.displayName = user.preferredName || user.firstName || user.name || '';
     res.json({ user: safeUser });
