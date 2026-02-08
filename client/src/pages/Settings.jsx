@@ -35,7 +35,10 @@ const TIMEZONES = [
 export default function Settings() {
   const { user, updateUser } = useAuth();
 
-  const [name, setName] = useState(user?.name || '');
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [usePreferredName, setUsePreferredName] = useState(!!user?.preferredName);
+  const [preferredName, setPreferredName] = useState(user?.preferredName || '');
   const [school, setSchool] = useState(user?.school || '');
   const [background, setBackground] = useState(user?.background || '');
   const [interests, setInterests] = useState(user?.interests || '');
@@ -59,11 +62,28 @@ export default function Settings() {
   };
 
   const handleSaveProfile = async () => {
+    if (!firstName.trim()) {
+      setError('First name is required');
+      return;
+    }
+    if (!lastName.trim()) {
+      setError('Last name is required');
+      return;
+    }
     setSavingProfile(true);
     setError('');
     try {
-      await api.put('/api/user/profile', { name, school, background, interests, emailSignature });
-      updateUser({ name, school, background, interests, emailSignature });
+      const profileData = {
+        firstName,
+        lastName,
+        preferredName: usePreferredName ? preferredName : '',
+        school,
+        background,
+        interests,
+        emailSignature,
+      };
+      await api.put('/api/user/profile', profileData);
+      updateUser({ ...profileData, displayName: (usePreferredName && preferredName) ? preferredName : firstName });
       showSuccess('Profile saved successfully!');
     } catch (err) {
       setError(err.message);
@@ -122,27 +142,63 @@ export default function Settings() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+                placeholder="Jane"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">School & Program</label>
-              <select
-                value={school}
-                onChange={(e) => setSchool(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white text-sm"
-              >
-                <option value="">Select...</option>
-                {SCHOOLS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+                placeholder="Smith"
+              />
             </div>
+          </div>
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={usePreferredName}
+                onChange={(e) => {
+                  setUsePreferredName(e.target.checked);
+                  if (!e.target.checked) setPreferredName('');
+                }}
+                className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/50"
+              />
+              <span className="text-sm text-slate-700">I go by a preferred name</span>
+            </label>
+            {usePreferredName && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={preferredName}
+                  onChange={(e) => setPreferredName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+                  placeholder="What should people call you?"
+                />
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">School & Program</label>
+            <select
+              value={school}
+              onChange={(e) => setSchool(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white text-sm"
+            >
+              <option value="">Select...</option>
+              {SCHOOLS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Background</label>

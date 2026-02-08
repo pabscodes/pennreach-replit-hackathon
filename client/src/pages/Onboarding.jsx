@@ -29,26 +29,46 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [name, setName] = useState(user?.name || '');
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [usePreferredName, setUsePreferredName] = useState(!!user?.preferredName);
+  const [preferredName, setPreferredName] = useState(user?.preferredName || '');
   const [school, setSchool] = useState(user?.school || '');
   const [background, setBackground] = useState(user?.background || '');
   const [interests, setInterests] = useState(user?.interests || '');
+
+  const displayName = preferredName && usePreferredName ? preferredName : firstName;
+  const sigDisplayName = (usePreferredName && preferredName) ? `${preferredName} ${lastName}`.trim() : `${firstName} ${lastName}`.trim();
+
   const [emailSignature, setEmailSignature] = useState(
-    user?.emailSignature || `Best,\n${user?.name || ''}\n${user?.school || ''}\nUniversity of Pennsylvania`
+    user?.emailSignature || `Best,\n${sigDisplayName || ''}\n${user?.school || ''}\nUniversity of Pennsylvania`
   );
   const [hunterApiKey, setHunterApiKey] = useState('');
 
   const handleStep1 = async () => {
-    if (!name.trim()) {
-      setError('Please enter your name');
+    if (!firstName.trim()) {
+      setError('Please enter your first name');
+      return;
+    }
+    if (!lastName.trim()) {
+      setError('Please enter your last name');
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await api.put('/api/user/profile', { name, school, background, interests });
-      updateUser({ name, school, background, interests });
-      setEmailSignature(`Best,\n${name}\n${school}\nUniversity of Pennsylvania`);
+      const profileData = {
+        firstName,
+        lastName,
+        preferredName: usePreferredName ? preferredName : '',
+        school,
+        background,
+        interests,
+      };
+      await api.put('/api/user/profile', profileData);
+      updateUser({ ...profileData, displayName: (usePreferredName && preferredName) ? preferredName : firstName });
+      const sigName = (usePreferredName && preferredName) ? preferredName : firstName;
+      setEmailSignature(`Best,\n${sigName} ${lastName}\n${school}\nUniversity of Pennsylvania`);
       setStep(2);
     } catch (err) {
       setError(err.message);
@@ -144,15 +164,53 @@ export default function Onboarding() {
               <h2 className="text-xl font-semibold text-slate-900">Tell us about yourself</h2>
               <p className="text-sm text-slate-500">This helps the AI personalize your outreach emails.</p>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    placeholder="Jane"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    placeholder="Smith"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  placeholder="Jane Smith"
-                />
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={usePreferredName}
+                    onChange={(e) => {
+                      setUsePreferredName(e.target.checked);
+                      if (!e.target.checked) setPreferredName('');
+                    }}
+                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/50"
+                  />
+                  <span className="text-sm text-slate-700">I go by a preferred name</span>
+                </label>
+                {usePreferredName && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      value={preferredName}
+                      onChange={(e) => setPreferredName(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      placeholder="What should people call you?"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -297,7 +355,7 @@ export default function Onboarding() {
                 <Check className="w-8 h-8 text-green-600" />
               </div>
               <div>
-                <h2 className="text-2xl font-semibold text-slate-900">You're all set!</h2>
+                <h2 className="text-2xl font-semibold text-slate-900">You're all set{displayName ? `, ${displayName}` : ''}!</h2>
                 <p className="text-slate-500 mt-2">Start reaching out to alumni and build meaningful connections.</p>
               </div>
               <button

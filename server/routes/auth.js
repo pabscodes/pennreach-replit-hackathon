@@ -85,6 +85,7 @@ router.get('/me', auth, async (req, res) => {
     const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     safeUser.hasHunterKey = !!user.hunterApiKey;
     safeUser.hasGoogleAuth = !!user.googleAccessToken;
+    safeUser.displayName = user.preferredName || user.firstName || user.name || '';
     res.json({ user: safeUser });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user' });

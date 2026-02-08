@@ -85,7 +85,7 @@ async function parseProfileFromFile(fileBuffer, mimeType) {
 async function generateDraft(user, contact, outreachGoal, goalDetail, availability) {
   const prompt = `You are writing a cold outreach email for an MBA student.
 
-SENDER: ${user.name || 'N/A'}, ${user.school || 'N/A'}. Background: ${user.background || 'N/A'}. Interests: ${user.interests || 'N/A'}.
+SENDER: ${user.preferredName || user.firstName || user.name || 'N/A'} ${user.lastName || ''}, ${user.school || 'N/A'}. Background: ${user.background || 'N/A'}. Interests: ${user.interests || 'N/A'}.
 
 RECIPIENT: ${contact.firstName || ''} ${contact.lastName || ''}, ${contact.role || 'N/A'} at ${contact.company || 'N/A'}.
 Background: ${contact.profileSummary || 'N/A'}
@@ -102,7 +102,7 @@ Write a cold email. Rules:
 - Connect sender's background to recipient's world
 - Clear ask: 15-minute call
 - Include availability if provided
-- End with sender's signature: ${user.emailSignature || user.name || 'Best'}
+- End with sender's signature: ${user.emailSignature || user.preferredName || user.firstName || user.name || 'Best'}
 - No "I hope this finds you well" or filler phrases
 
 Return ONLY valid JSON, no markdown formatting or code blocks: { "subject": "...", "body": "..." }`;

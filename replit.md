@@ -50,6 +50,7 @@ pennreach/
 - User-specific API keys: Only Hunter.io stored per user in database
 
 ## Recent Changes
+- 2026-02-08: Onboarding name fields restructure — split Full Name into First/Last Name, added preferred name checkbox, Layout greeting uses displayName
 - 2026-02-08: Migrated AI from Anthropic Claude (user API key) to Replit AI Integration (OpenAI SDK, built-in, no user key needed)
 - 2026-02-08: Removed Anthropic API key fields from Onboarding and Settings pages
 - 2026-02-08: Updated ai.js service to use OpenAI SDK with gpt-5.2 model

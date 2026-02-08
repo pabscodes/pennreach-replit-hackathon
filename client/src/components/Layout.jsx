@@ -9,8 +9,9 @@ const navLinks = [
 ];
 
 export default function Layout({ children }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const displayName = user?.displayName || user?.preferredName || user?.firstName || '';
 
   const handleLogout = async () => {
     try {
@@ -46,7 +47,12 @@ export default function Layout({ children }) {
                 ))}
               </div>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              {displayName && (
+                <span className="hidden sm:inline text-sm text-slate-600">
+                  Hi, {displayName}
+                </span>
+              )}
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
