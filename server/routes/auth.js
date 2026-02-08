@@ -12,6 +12,7 @@ const COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: 'lax',
   secure: isProduction,
+  path: '/',
   maxAge: 24 * 60 * 60 * 1000,
 };
 
