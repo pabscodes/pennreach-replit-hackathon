@@ -50,6 +50,10 @@ pennreach/
 - User-specific API keys: Only Hunter.io stored per user in database
 
 ## Recent Changes
+- 2026-02-08: Issue #9 — API key management UX: masked keys, Active badge, Update/Delete with confirm modal
+- 2026-02-08: Issue #5 — Rich text email signature editor: TipTap with bold/italic/underline/links, HTML storage, preview with DOMPurify sanitization
+- 2026-02-08: Issue #4 — Outreach purpose questionnaire: 6 multi-select purpose cards, optional context, new step 2 in onboarding (5 steps total)
+- 2026-02-08: Issue #3 — Resume upload & auto-bio: PDF drag-drop, AI parsing, structured work/education/skills fields (persisted as JSON), auto-generated bio
 - 2026-02-08: Onboarding name fields restructure — split Full Name into First/Last Name, added preferred name checkbox, Layout greeting uses displayName
 - 2026-02-08: Migrated AI from Anthropic Claude (user API key) to Replit AI Integration (OpenAI SDK, built-in, no user key needed)
 - 2026-02-08: Removed Anthropic API key fields from Onboarding and Settings pages
