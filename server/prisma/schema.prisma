@@ -18,7 +18,6 @@ model User {
   resumeText         String?
   emailSignature     String?
   hunterApiKey       String?
-  anthropicApiKey    String?
   googleAccessToken  String?
   googleRefreshToken String?
   googleTokenExpiry  DateTime?

@@ -40,7 +40,7 @@ router.post('/signup', async (req, res) => {
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
     res.cookie('token', token, COOKIE_OPTIONS);
 
-    const { passwordHash: _, hunterApiKey: _h, anthropicApiKey: _a, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
+    const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     res.status(201).json({ user: safeUser });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create account' });
@@ -68,7 +68,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
     res.cookie('token', token, COOKIE_OPTIONS);
 
-    const { passwordHash: _, hunterApiKey: _h, anthropicApiKey: _a, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
+    const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     res.json({ user: safeUser });
   } catch (err) {
     res.status(500).json({ error: 'Login failed' });
@@ -82,7 +82,7 @@ router.get('/me', auth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const { passwordHash: _, hunterApiKey: _h, anthropicApiKey: _a, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
+    const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     safeUser.hasHunterKey = !!user.hunterApiKey;
     safeUser.hasGoogleAuth = !!user.googleAccessToken;
     res.json({ user: safeUser });

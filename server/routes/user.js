@@ -23,7 +23,7 @@ router.put('/profile', async (req, res) => {
       },
     });
 
-    const { passwordHash: _, hunterApiKey: _h, anthropicApiKey: _a, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
+    const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     res.json({ user: safeUser });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update profile' });
@@ -58,7 +58,7 @@ router.put('/onboarding', async (req, res) => {
       data: { onboardingComplete: true },
     });
 
-    const { passwordHash: _, hunterApiKey: _h, anthropicApiKey: _a, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
+    const { passwordHash: _, hunterApiKey: _h, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     res.json({ user: safeUser });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update onboarding status' });
