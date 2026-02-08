@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  passwordHash       String
+  name               String?
+  school             String?
+  background         String?
+  interests          String?
+  resumeText         String?
+  emailSignature     String?
+  hunterApiKey       String?
+  anthropicApiKey    String?
+  googleAccessToken  String?
+  googleRefreshToken String?
+  googleTokenExpiry  DateTime?
+  workingHoursStart  Int       @default(10)
+  workingHoursEnd    Int       @default(17)
+  timezone           String    @default("America/New_York")
+  onboardingComplete Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  contacts           Contact[]
+}
+
+model Contact {
+  id              Int          @id @default(autoincrement())
+  userId          Int
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName       String?
+  lastName        String?
+  company         String?
+  role            String?
+  linkedinUrl     String?
+  workEmail       String?
+  personalEmail   String?
+  profileSummary  String?
+  rawProfileText  String?
+  hooks           String?
+  outreachGoal    String?
+  goalDetail      String?
+  status          String       @default("new")
+  emailStatus     String       @default("not_searched")
+  emailConfidence Int?
+  lastActionAt    DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  drafts          EmailDraft[]
+}
+
+model EmailDraft {
+  id               Int      @id @default(autoincrement())
+  contactId        Int
+  contact          Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  subject          String
+  body             String
+  availabilityText String?
+  gmailDraftId     String?
+  version          Int      @default(1)
+  createdAt        DateTime @default(now())
+}
