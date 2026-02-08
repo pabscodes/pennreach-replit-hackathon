@@ -19,6 +19,12 @@ model User {
   background         String?
   interests          String?
   resumeText         String?
+  generatedBio       String?
+  workExperience     Json?
+  education          Json?
+  skillsInterests    Json?
+  outreachPurposes   Json?
+  outreachContext    String?
   emailSignature     String?
   hunterApiKey       String?
   googleAccessToken  String?

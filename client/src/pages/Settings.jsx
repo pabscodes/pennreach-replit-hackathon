@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../lib/api';
-import { Loader2, Save, Key, User, Mail, Clock, CheckCircle, Calendar, ExternalLink, X } from 'lucide-react';
+import { Loader2, Save, Key, User, Mail, Clock, CheckCircle, Calendar, ExternalLink, X, Trash2, Edit3, Shield } from 'lucide-react';
+import SignatureEditor from '../components/SignatureEditor';
+import DOMPurify from 'dompurify';
 
 const SCHOOLS = [
   'Wharton MBA 2027',
@@ -45,6 +47,9 @@ export default function Settings() {
   const [emailSignature, setEmailSignature] = useState(user?.emailSignature || '');
 
   const [hunterApiKey, setHunterApiKey] = useState('');
+  const [editingHunterKey, setEditingHunterKey] = useState(!user?.hasHunterKey);
+  const [deletingHunterKey, setDeletingHunterKey] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [workingHoursStart, setWorkingHoursStart] = useState(user?.workingHoursStart ?? 10);
   const [workingHoursEnd, setWorkingHoursEnd] = useState(user?.workingHoursEnd ?? 17);
@@ -161,18 +166,39 @@ export default function Settings() {
   };
 
   const handleSaveKeys = async () => {
+    if (!hunterApiKey.trim()) {
+      setError('Please enter an API key');
+      return;
+    }
     setSavingKeys(true);
     setError('');
     try {
-      const settings = {};
-      if (hunterApiKey) settings.hunterApiKey = hunterApiKey;
-      await api.put('/api/user/settings', settings);
+      await api.put('/api/user/settings', { hunterApiKey });
+      updateUser({ hasHunterKey: true, hunterKeyMasked: '••••••••' + hunterApiKey.slice(-4) });
       showSuccess('API key saved successfully!');
       setHunterApiKey('');
+      setEditingHunterKey(false);
     } catch (err) {
       setError(err.message);
     } finally {
       setSavingKeys(false);
+    }
+  };
+
+  const handleDeleteHunterKey = async () => {
+    setDeletingHunterKey(true);
+    setError('');
+    try {
+      await api.delete('/api/user/settings/hunter-key');
+      updateUser({ hasHunterKey: false, hunterKeyMasked: null });
+      showSuccess('API key deleted');
+      setShowDeleteConfirm(false);
+      setEditingHunterKey(true);
+      setHunterApiKey('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingHunterKey(false);
     }
   };
 
@@ -290,13 +316,15 @@ export default function Settings() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email Signature</label>
-            <textarea
-              value={emailSignature}
-              onChange={(e) => setEmailSignature(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none text-sm font-mono"
-            />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Email Signature</label>
+            <SignatureEditor value={emailSignature} onChange={setEmailSignature} />
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-slate-500 mb-1">Preview</label>
+              <div
+                className="p-3 bg-slate-50 rounded-lg border border-slate-200 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailSignature) }}
+              />
+            </div>
           </div>
           <div className="flex justify-end">
             <button
@@ -319,30 +347,100 @@ export default function Settings() {
           <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">
             AI-powered profile parsing and email drafting are built in — no API key needed!
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Hunter.io API Key</label>
-            <input
-              type="password"
-              value={hunterApiKey}
-              onChange={(e) => setHunterApiKey(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
-              placeholder={user?.hasHunterKey ? '••••••••••••••••' : 'Enter your Hunter.io API key'}
-            />
-            <p className="mt-1 text-xs text-slate-400">
-              <a href="https://hunter.io/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get a free Hunter.io key</a> — used for email lookups (free tier: 25/month)
-            </p>
-          </div>
-          <div className="flex justify-end">
-            <button
-              onClick={handleSaveKeys}
-              disabled={savingKeys || !hunterApiKey}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 text-sm"
-            >
-              {savingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save API Key
-            </button>
+
+          <div className="border border-slate-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-700">Hunter.io API Key</span>
+                {user?.hasHunterKey && !editingHunterKey && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    <Shield className="w-3 h-3" /> Active
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                <a href="https://hunter.io/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get a free key</a> — 25 lookups/month
+              </p>
+            </div>
+
+            {user?.hasHunterKey && !editingHunterKey ? (
+              <div>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg mb-3">
+                  <code className="text-sm text-slate-600 font-mono">{user.hunterKeyMasked}</code>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingHunterKey(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Update
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="password"
+                  value={hunterApiKey}
+                  onChange={(e) => setHunterApiKey(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm mb-3"
+                  placeholder="Enter your Hunter.io API key"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveKeys}
+                    disabled={savingKeys || !hunterApiKey.trim()}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 text-sm"
+                  >
+                    {savingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save
+                  </button>
+                  {user?.hasHunterKey && (
+                    <button
+                      onClick={() => { setEditingHunterKey(false); setHunterApiKey(''); }}
+                      className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900">Delete API Key?</h3>
+              <p className="text-sm text-slate-600">
+                Are you sure? This will disable email lookup functionality until you add a new key.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteHunterKey}
+                  disabled={deletingHunterKey}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {deletingHunterKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Delete Key
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
