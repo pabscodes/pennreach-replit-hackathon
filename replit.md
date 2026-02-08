@@ -10,7 +10,7 @@ PennReach is a full-stack web application for MBA students to manage alumni cold
 - **Auth**: bcryptjs + JWT (HttpOnly cookies)
 - **AI**: Replit AI Integration (OpenAI SDK, gpt-5.2 model) — no user API key needed
 - **Email Lookup**: Hunter.io API (user-provided key)
-- **Gmail/Calendar**: Google OAuth (placeholder, needs Google Cloud setup)
+- **Gmail/Calendar**: Google OAuth 2.0 (gmail.send, gmail.compose, calendar.readonly scopes)
 
 ## Project Structure
 ```
@@ -49,7 +49,14 @@ pennreach/
 - `AI_INTEGRATIONS_OPENAI_BASE_URL` - Replit AI integration base URL (auto-provided)
 - User-specific API keys: Only Hunter.io stored per user in database
 
+## Environment Variables (Google OAuth)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID (user must set)
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret (user must set)
+- `GOOGLE_REDIRECT_URI` - OAuth callback URL (auto-set to app domain)
+
 ## Recent Changes
+- 2026-02-08: P0-6: Multi-file drag & drop upload in NewContact — supports dropping/selecting multiple PDFs and images, file list with type icons and remove buttons, combined parsing
+- 2026-02-08: P0-10: Gmail & Google Calendar OAuth integration — Connect/Disconnect in Settings, Create Gmail Draft and Send via Gmail in NewContact, Calendar free-slots for availability
 - 2026-02-08: Onboarding name fields restructure — split Full Name into First/Last Name, added preferred name checkbox, Layout greeting uses displayName
 - 2026-02-08: Migrated AI from Anthropic Claude (user API key) to Replit AI Integration (OpenAI SDK, built-in, no user key needed)
 - 2026-02-08: Removed Anthropic API key fields from Onboarding and Settings pages

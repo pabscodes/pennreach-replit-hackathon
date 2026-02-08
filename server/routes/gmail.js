@@ -1,7 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const auth = require('../middleware/auth');
-const { isConfigured, getAuthUrl, getTokensFromCode, getAuthenticatedClient } = require('../services/google');
+const { isConfigured, getAuthUrl, getTokensFromCode, getAuthenticatedClient, verifySignedState } = require('../services/google');
 const { google } = require('googleapis');
 
 const router = express.Router();
@@ -18,19 +18,16 @@ router.get('/callback', async (req, res) => {
       return res.status(400).send('Missing authorization code');
     }
 
-    let userId;
-    if (state) {
-      try {
-        const parsed = JSON.parse(state);
-        userId = parsed.userId;
-      } catch (e) {
-        return res.status(400).send('Invalid state parameter');
-      }
+    if (!state) {
+      return res.status(400).send('Missing state parameter');
     }
 
-    if (!userId) {
-      return res.status(400).send('Missing user context');
+    const verified = verifySignedState(state);
+    if (!verified || !verified.userId) {
+      return res.status(400).send('Invalid or expired state parameter');
     }
+
+    const userId = verified.userId;
 
     const tokens = await getTokensFromCode(code);
 
@@ -108,8 +105,7 @@ router.get('/auth-url', (req, res) => {
     });
   }
 
-  const state = JSON.stringify({ userId: req.userId });
-  const url = getAuthUrl(state);
+  const url = getAuthUrl(req.userId);
   res.json({ configured: true, url });
 });
 

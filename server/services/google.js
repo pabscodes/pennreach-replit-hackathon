@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
@@ -25,8 +26,38 @@ function createOAuth2Client() {
   );
 }
 
-function getAuthUrl(state) {
+function getSigningSecret() {
+  return process.env.JWT_SECRET || 'default-dev-secret';
+}
+
+function createSignedState(userId) {
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const payload = JSON.stringify({ userId, nonce, ts: Date.now() });
+  const hmac = crypto.createHmac('sha256', getSigningSecret()).update(payload).digest('hex');
+  return Buffer.from(JSON.stringify({ payload, hmac })).toString('base64');
+}
+
+function verifySignedState(state) {
+  try {
+    const { payload, hmac } = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+    const expectedHmac = crypto.createHmac('sha256', getSigningSecret()).update(payload).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expectedHmac))) {
+      return null;
+    }
+    const parsed = JSON.parse(payload);
+    const age = Date.now() - parsed.ts;
+    if (age > 10 * 60 * 1000) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function getAuthUrl(userId) {
   const oauth2Client = createOAuth2Client();
+  const state = createSignedState(userId);
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
@@ -89,5 +120,6 @@ module.exports = {
   getAuthUrl,
   getTokensFromCode,
   getAuthenticatedClient,
+  verifySignedState,
   SCOPES,
 };
