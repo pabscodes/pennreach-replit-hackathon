@@ -11,6 +11,7 @@ channel = "stable-25_05"
 [userenv.shared]
 JWT_SECRET = "d0abe4ce1d79f76e73aa9a469b7d889d5c06f85005598a56462c64ba0f599d69"
 ENCRYPTION_KEY = "pennreach_encryption_key_32chars"
+GOOGLE_REDIRECT_URI = "https://c7078744-e78b-4ae6-a1ad-6147ff294d90-00-3tl6og87rsdb0.riker.replit.dev/api/gmail/callback"
 
 [workflows]
 runButton = "Project"

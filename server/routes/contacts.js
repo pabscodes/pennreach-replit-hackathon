@@ -10,27 +10,67 @@ const prisma = new PrismaClient();
 
 router.use(auth);
 
-router.post('/parse', upload.single('file'), async (req, res) => {
+router.post('/parse', upload.array('files', 10), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    const files = req.files || [];
+    const singleFile = req.file;
+
+    if (singleFile) {
+      files.push(singleFile);
+    }
+
+    if (files.length === 0 && !req.body.text) {
+      return res.status(400).json({ error: 'Please provide a file or text to parse' });
+    }
+
+    const textParts = [];
+    const imageBuffers = [];
+
+    if (req.body.text && req.body.text.trim()) {
+      textParts.push(req.body.text.trim());
+    }
+
+    for (const file of files) {
+      if (file.mimetype === 'application/pdf') {
+        const pdfParse = require('pdf-parse');
+        const pdfData = await pdfParse(file.buffer);
+        textParts.push(pdfData.text);
+      } else {
+        imageBuffers.push({ buffer: file.buffer, mimeType: file.mimetype });
+      }
+    }
 
     let parsed;
-    let rawText = null;
+    let rawText = textParts.length > 0 ? textParts.join('\n\n---\n\n') : null;
 
-    if (req.file) {
-      if (req.file.mimetype === 'application/pdf') {
-        const pdfParse = require('pdf-parse');
-        const pdfData = await pdfParse(req.file.buffer);
-        rawText = pdfData.text;
-        parsed = await parseProfile(rawText);
-      } else {
-        parsed = await parseProfileFromFile(req.file.buffer, req.file.mimetype);
+    if (imageBuffers.length > 0 && textParts.length > 0) {
+      const imageResults = [];
+      for (const img of imageBuffers) {
+        const imgParsed = await parseProfileFromFile(img.buffer, img.mimeType);
+        imageResults.push(imgParsed);
       }
-    } else if (req.body.text) {
-      rawText = req.body.text;
+      const imageText = imageResults.map(r =>
+        `${r.firstName || ''} ${r.lastName || ''} - ${r.role || ''} at ${r.company || ''}\n${r.profileSummary || ''}`
+      ).join('\n\n');
+      rawText = rawText + '\n\n---\n\n' + imageText;
       parsed = await parseProfile(rawText);
+    } else if (imageBuffers.length > 0) {
+      if (imageBuffers.length === 1) {
+        parsed = await parseProfileFromFile(imageBuffers[0].buffer, imageBuffers[0].mimeType);
+      } else {
+        const imageResults = [];
+        for (const img of imageBuffers) {
+          const imgParsed = await parseProfileFromFile(img.buffer, img.mimeType);
+          imageResults.push(imgParsed);
+        }
+        rawText = imageResults.map(r =>
+          `${r.firstName || ''} ${r.lastName || ''} - ${r.role || ''} at ${r.company || ''}\n${r.profileSummary || ''}`
+        ).join('\n\n');
+        parsed = await parseProfile(rawText);
+      }
     } else {
-      return res.status(400).json({ error: 'Please provide a file or text to parse' });
+      parsed = await parseProfile(rawText);
     }
 
     const contact = await prisma.contact.create({

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "drizzle-zod": "^0.8.3",
+    "googleapis": "^171.4.0",
     "openai": "^6.18.0",
     "p-limit": "^7.3.0",
     "p-retry": "^7.1.1",

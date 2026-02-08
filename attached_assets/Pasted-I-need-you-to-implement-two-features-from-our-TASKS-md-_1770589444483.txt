@@ -1,0 +1,53 @@
+I need you to implement two features from our TASKS.md file: P0-6 and P0-10. Read
+  TASKS.md for full specs, but here's the summary:
+
+  P0-6: New Contact — Drag & drop + multi-file upload
+  In NewContact.jsx Stage 1:
+  - Add a drag & drop zone with visual feedback (highlight on drag over)
+  - Support dropping and selecting multiple files at once
+  - Show a list of uploaded files with file type icons (PDF, image) and a remove button
+   for each
+  - Combine content from all uploaded files before sending to the parse endpoint
+
+  On the server (POST /api/contacts/parse):
+  - Accept multiple files via multipart form-data
+  - Update the multer config in server/middleware/upload.js for multiple files
+  - Parse each file, concatenate/merge the extracted text, and send combined text to AI
+   for a single structured parse
+  - Single file upload should still work exactly as before
+
+  P0-10: Settings — Gmail & Google Calendar OAuth integration
+  Google OAuth setup:
+  - Set up OAuth 2.0 flow with scopes: gmail.send, gmail.compose, calendar.readonly
+  - Environment variables needed: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI
+
+  Server auth routes:
+  - GET /api/auth/google — Initiate OAuth flow (redirect to Google)
+  - GET /api/auth/google/callback — Handle callback, store tokens
+  - Token refresh logic (access tokens expire hourly)
+  - Store googleAccessToken, googleRefreshToken, googleTokenExpiry in the DB (fields
+  may already exist)
+
+  Server Gmail routes (update server/routes/gmail.js):
+  - POST /api/gmail/create-draft — Create draft in user's Gmail
+  - POST /api/gmail/send — Send an existing draft
+  - GET /api/gmail/status — Check if Gmail is connected
+
+  Server Calendar routes (update server/routes/calendar.js):
+  - GET /api/calendar/free-slots — Find available meeting slots using Calendar API
+  freebusy.query, respecting user working hours
+  - Integrate free slots into draft generation so AI can suggest specific meeting times
+
+  Client Settings page:
+  - Gmail section: "Connect Gmail" button → OAuth flow → shows connected email +
+  "Disconnect" button
+  - Calendar section: "Connect Google Calendar" button → same flow → shows connected +
+  "Disconnect"
+
+  Client NewContact page:
+  - After draft is finalized, show "Create Gmail Draft" or "Send via Gmail" options
+  - Show suggested meeting times from calendar in the availability section
+
+  Do NOT touch any other P0 issues. Only implement P0-6 and P0-10. Commit each feature
+  separately.
