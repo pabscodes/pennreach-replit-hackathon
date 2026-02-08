@@ -22,13 +22,13 @@ router.post('/parse', upload.single('file'), async (req, res) => {
         const pdfParse = require('pdf-parse');
         const pdfData = await pdfParse(req.file.buffer);
         rawText = pdfData.text;
-        parsed = await parseProfile(rawText, user.anthropicApiKey);
+        parsed = await parseProfile(rawText);
       } else {
-        parsed = await parseProfileFromFile(req.file.buffer, req.file.mimetype, user.anthropicApiKey);
+        parsed = await parseProfileFromFile(req.file.buffer, req.file.mimetype);
       }
     } else if (req.body.text) {
       rawText = req.body.text;
-      parsed = await parseProfile(rawText, user.anthropicApiKey);
+      parsed = await parseProfile(rawText);
     } else {
       return res.status(400).json({ error: 'Please provide a file or text to parse' });
     }
@@ -232,7 +232,7 @@ router.post('/:id/draft', async (req, res) => {
       });
     }
 
-    const result = await generateDraft(user, contact, outreachGoal || contact.outreachGoal, goalDetail || contact.goalDetail, availability, user.anthropicApiKey);
+    const result = await generateDraft(user, contact, outreachGoal || contact.outreachGoal, goalDetail || contact.goalDetail, availability);
 
     const version = contact.drafts.length + 1;
     const draft = await prisma.emailDraft.create({

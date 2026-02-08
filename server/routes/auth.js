@@ -84,7 +84,6 @@ router.get('/me', auth, async (req, res) => {
 
     const { passwordHash: _, hunterApiKey: _h, anthropicApiKey: _a, googleAccessToken: _g, googleRefreshToken: _gr, ...safeUser } = user;
     safeUser.hasHunterKey = !!user.hunterApiKey;
-    safeUser.hasAnthropicKey = !!user.anthropicApiKey;
     safeUser.hasGoogleAuth = !!user.googleAccessToken;
     res.json({ user: safeUser });
   } catch (err) {

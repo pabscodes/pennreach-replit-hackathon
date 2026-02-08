@@ -1,4 +1,9 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 const PARSE_PROMPT = `You are an expert at analyzing professional profiles. Extract information and return ONLY valid JSON:
 
@@ -20,76 +25,44 @@ IMPORTANT: Also analyze the profile deeply to identify:
 
 Return ONLY valid JSON, no markdown formatting or code blocks.`;
 
-async function parseProfile(text, anthropicApiKey) {
-  if (!anthropicApiKey) {
-    throw new Error('Anthropic API key is required. Please add your API key in Settings.');
-  }
-
-  const client = new Anthropic({ apiKey: anthropicApiKey });
-
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 800,
+async function parseProfile(text) {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-5.2',
+    max_completion_tokens: 800,
     messages: [
       {
         role: 'user',
         content: `${PARSE_PROMPT}\n\nHere is the profile text to analyze:\n\n${text}`,
       },
     ],
+    response_format: { type: 'json_object' },
   });
 
-  const responseText = message.content[0].text;
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Failed to parse AI response as JSON');
+  const responseText = response.choices[0]?.message?.content;
+  if (!responseText) {
+    throw new Error('Failed to get AI response');
   }
-  return JSON.parse(jsonMatch[0]);
+  return JSON.parse(responseText);
 }
 
-async function parseProfileFromFile(fileBuffer, mimeType, anthropicApiKey) {
-  if (!anthropicApiKey) {
-    throw new Error('Anthropic API key is required. Please add your API key in Settings.');
-  }
-
-  const client = new Anthropic({ apiKey: anthropicApiKey });
+async function parseProfileFromFile(fileBuffer, mimeType) {
   const base64Data = fileBuffer.toString('base64');
+  const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
-  let content;
-  if (mimeType === 'application/pdf') {
-    content = [
-      {
-        type: 'document',
-        source: {
-          type: 'base64',
-          media_type: mimeType,
-          data: base64Data,
-        },
-      },
-      {
-        type: 'text',
-        text: PARSE_PROMPT,
-      },
-    ];
-  } else {
-    content = [
-      {
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: mimeType,
-          data: base64Data,
-        },
-      },
-      {
-        type: 'text',
-        text: PARSE_PROMPT,
-      },
-    ];
-  }
+  const content = [
+    {
+      type: 'image_url',
+      image_url: { url: dataUrl },
+    },
+    {
+      type: 'text',
+      text: PARSE_PROMPT,
+    },
+  ];
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 800,
+  const response = await openai.chat.completions.create({
+    model: 'gpt-5.2',
+    max_completion_tokens: 800,
     messages: [
       {
         role: 'user',
@@ -98,7 +71,10 @@ async function parseProfileFromFile(fileBuffer, mimeType, anthropicApiKey) {
     ],
   });
 
-  const responseText = message.content[0].text;
+  const responseText = response.choices[0]?.message?.content;
+  if (!responseText) {
+    throw new Error('Failed to get AI response');
+  }
   const jsonMatch = responseText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Failed to parse AI response as JSON');
@@ -106,13 +82,7 @@ async function parseProfileFromFile(fileBuffer, mimeType, anthropicApiKey) {
   return JSON.parse(jsonMatch[0]);
 }
 
-async function generateDraft(user, contact, outreachGoal, goalDetail, availability, anthropicApiKey) {
-  if (!anthropicApiKey) {
-    throw new Error('Anthropic API key is required. Please add your API key in Settings.');
-  }
-
-  const client = new Anthropic({ apiKey: anthropicApiKey });
-
+async function generateDraft(user, contact, outreachGoal, goalDetail, availability) {
   const prompt = `You are writing a cold outreach email for an MBA student.
 
 SENDER: ${user.name || 'N/A'}, ${user.school || 'N/A'}. Background: ${user.background || 'N/A'}. Interests: ${user.interests || 'N/A'}.
@@ -137,23 +107,23 @@ Write a cold email. Rules:
 
 Return ONLY valid JSON, no markdown formatting or code blocks: { "subject": "...", "body": "..." }`;
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 800,
+  const response = await openai.chat.completions.create({
+    model: 'gpt-5.2',
+    max_completion_tokens: 800,
     messages: [
       {
         role: 'user',
         content: prompt,
       },
     ],
+    response_format: { type: 'json_object' },
   });
 
-  const responseText = message.content[0].text;
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Failed to parse AI response as JSON');
+  const responseText = response.choices[0]?.message?.content;
+  if (!responseText) {
+    throw new Error('Failed to get AI response');
   }
-  return JSON.parse(jsonMatch[0]);
+  return JSON.parse(responseText);
 }
 
 module.exports = {

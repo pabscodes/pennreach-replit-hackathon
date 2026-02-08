@@ -42,7 +42,6 @@ export default function Settings() {
   const [emailSignature, setEmailSignature] = useState(user?.emailSignature || '');
 
   const [hunterApiKey, setHunterApiKey] = useState('');
-  const [anthropicApiKey, setAnthropicApiKey] = useState('');
 
   const [workingHoursStart, setWorkingHoursStart] = useState(user?.workingHoursStart ?? 10);
   const [workingHoursEnd, setWorkingHoursEnd] = useState(user?.workingHoursEnd ?? 17);
@@ -79,11 +78,9 @@ export default function Settings() {
     try {
       const settings = {};
       if (hunterApiKey) settings.hunterApiKey = hunterApiKey;
-      if (anthropicApiKey) settings.anthropicApiKey = anthropicApiKey;
       await api.put('/api/user/settings', settings);
-      showSuccess('API keys saved successfully!');
+      showSuccess('API key saved successfully!');
       setHunterApiKey('');
-      setAnthropicApiKey('');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -192,6 +189,9 @@ export default function Settings() {
           <Key className="w-5 h-5 text-primary" /> API Keys
         </h2>
         <div className="space-y-4">
+          <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">
+            AI-powered profile parsing and email drafting are built in — no API key needed!
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Hunter.io API Key</label>
             <input
@@ -199,33 +199,20 @@ export default function Settings() {
               value={hunterApiKey}
               onChange={(e) => setHunterApiKey(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
-              placeholder={user?.hunterApiKey ? '••••••••••••••••' : 'Enter your Hunter.io API key'}
+              placeholder={user?.hasHunterKey ? '••••••••••••••••' : 'Enter your Hunter.io API key'}
             />
             <p className="mt-1 text-xs text-slate-400">
-              <a href="https://hunter.io/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get a free Hunter.io key</a>
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Anthropic API Key</label>
-            <input
-              type="password"
-              value={anthropicApiKey}
-              onChange={(e) => setAnthropicApiKey(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
-              placeholder={user?.anthropicApiKey ? '••••••••••••••••' : 'Enter your Anthropic API key'}
-            />
-            <p className="mt-1 text-xs text-slate-400">
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get an Anthropic key</a>
+              <a href="https://hunter.io/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get a free Hunter.io key</a> — used for email lookups (free tier: 25/month)
             </p>
           </div>
           <div className="flex justify-end">
             <button
               onClick={handleSaveKeys}
-              disabled={savingKeys || (!hunterApiKey && !anthropicApiKey)}
+              disabled={savingKeys || !hunterApiKey}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 text-sm"
             >
               {savingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save API Keys
+              Save API Key
             </button>
           </div>
         </div>

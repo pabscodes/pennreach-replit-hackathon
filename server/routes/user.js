@@ -32,11 +32,10 @@ router.put('/profile', async (req, res) => {
 
 router.put('/settings', async (req, res) => {
   try {
-    const { hunterApiKey, anthropicApiKey } = req.body;
+    const { hunterApiKey } = req.body;
 
     const data = {};
     if (hunterApiKey !== undefined) data.hunterApiKey = hunterApiKey;
-    if (anthropicApiKey !== undefined) data.anthropicApiKey = anthropicApiKey;
 
     await prisma.user.update({
       where: { id: req.userId },
@@ -46,7 +45,6 @@ router.put('/settings', async (req, res) => {
     res.json({
       message: 'Settings updated',
       hasHunterKey: !!hunterApiKey,
-      hasAnthropicKey: !!anthropicApiKey,
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update settings' });

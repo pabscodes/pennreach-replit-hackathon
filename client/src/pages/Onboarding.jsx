@@ -20,7 +20,7 @@ const SCHOOLS = [
   'Other',
 ];
 
-const STEPS = ['Your Background', 'Email Signature', 'API Keys', 'All Set!'];
+const STEPS = ['Your Background', 'Email Signature', 'Hunter.io Key', 'All Set!'];
 
 export default function Onboarding() {
   const { user, updateUser } = useAuth();
@@ -37,7 +37,6 @@ export default function Onboarding() {
     user?.emailSignature || `Best,\n${user?.name || ''}\n${user?.school || ''}\nUniversity of Pennsylvania`
   );
   const [hunterApiKey, setHunterApiKey] = useState('');
-  const [anthropicApiKey, setAnthropicApiKey] = useState('');
 
   const handleStep1 = async () => {
     if (!name.trim()) {
@@ -76,11 +75,8 @@ export default function Onboarding() {
     setError('');
     setLoading(true);
     try {
-      if (!skip && (hunterApiKey || anthropicApiKey)) {
-        const settings = {};
-        if (hunterApiKey) settings.hunterApiKey = hunterApiKey;
-        if (anthropicApiKey) settings.anthropicApiKey = anthropicApiKey;
-        await api.put('/api/user/settings', settings);
+      if (!skip && hunterApiKey) {
+        await api.put('/api/user/settings', { hunterApiKey });
       }
       setStep(4);
     } catch (err) {
@@ -242,10 +238,14 @@ export default function Onboarding() {
 
           {step === 3 && (
             <div className="space-y-5">
-              <h2 className="text-xl font-semibold text-slate-900">API Keys</h2>
+              <h2 className="text-xl font-semibold text-slate-900">Email Lookup Setup</h2>
               <p className="text-sm text-slate-500">
-                Optional — you can add these later in Settings. These keys are stored securely and used only for your outreach.
+                Optional — you can add this later in Settings. AI features are powered by Replit and work automatically.
               </p>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">
+                AI-powered profile parsing and email drafting are built in — no API key needed!
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -261,24 +261,7 @@ export default function Onboarding() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                   placeholder="Enter your Hunter.io API key"
                 />
-                <p className="mt-1 text-xs text-slate-400">Used to find professional email addresses</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Anthropic API Key
-                  <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="ml-2 text-primary hover:underline inline-flex items-center gap-1">
-                    Get a key <ExternalLink className="w-3 h-3" />
-                  </a>
-                </label>
-                <input
-                  type="password"
-                  value={anthropicApiKey}
-                  onChange={(e) => setAnthropicApiKey(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  placeholder="Enter your Anthropic API key"
-                />
-                <p className="mt-1 text-xs text-slate-400">Used for AI-powered profile parsing and email drafting</p>
+                <p className="mt-1 text-xs text-slate-400">Used to find professional email addresses (free tier: 25 searches/month)</p>
               </div>
 
               <div className="flex justify-between">

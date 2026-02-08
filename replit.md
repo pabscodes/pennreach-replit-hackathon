@@ -1,15 +1,15 @@
 # PennReach
 
 ## Overview
-PennReach is a full-stack web application for MBA students to manage alumni cold outreach. It helps users upload professional profiles (LinkedIn PDFs, text), find work emails via Hunter.io, and generate AI-personalized outreach emails using Anthropic Claude.
+PennReach is a full-stack web application for MBA students to manage alumni cold outreach. It helps users upload professional profiles (LinkedIn PDFs, text), find work emails via Hunter.io, and generate AI-personalized outreach emails using built-in Replit AI (OpenAI-compatible).
 
 ## Project Architecture
 - **Frontend**: React + Vite + Tailwind CSS v4, served on port 5000
 - **Backend**: Node.js + Express on port 3001
 - **Database**: PostgreSQL with Prisma ORM
 - **Auth**: bcryptjs + JWT (HttpOnly cookies)
-- **AI**: Anthropic Claude API (claude-sonnet-4-5-20250929)
-- **Email Lookup**: Hunter.io API
+- **AI**: Replit AI Integration (OpenAI SDK, gpt-5.2 model) — no user API key needed
+- **Email Lookup**: Hunter.io API (user-provided key)
 - **Gmail/Calendar**: Google OAuth (placeholder, needs Google Cloud setup)
 
 ## Project Structure
@@ -27,7 +27,7 @@ pennreach/
 │   └── package.json
 ├── server/                 # Express backend
 │   ├── routes/             # auth, user, contacts, drafts, gmail, calendar
-│   ├── services/           # ai.js (Claude), hunter.js (Hunter.io)
+│   ├── services/           # ai.js (OpenAI/Replit AI), hunter.js (Hunter.io)
 │   ├── middleware/         # auth.js (JWT), upload.js (multer)
 │   ├── prisma/schema.prisma
 │   ├── index.js            # Express entry
@@ -45,7 +45,12 @@ pennreach/
 - `DATABASE_URL` - PostgreSQL connection (auto-provided by Replit)
 - `JWT_SECRET` - JWT signing secret
 - `ENCRYPTION_KEY` - For encrypting API keys in DB
-- User-specific API keys (Hunter.io, Anthropic) stored encrypted in the database per user
+- `AI_INTEGRATIONS_OPENAI_API_KEY` - Replit AI integration key (auto-provided)
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` - Replit AI integration base URL (auto-provided)
+- User-specific API keys: Only Hunter.io stored per user in database
 
 ## Recent Changes
+- 2026-02-08: Migrated AI from Anthropic Claude (user API key) to Replit AI Integration (OpenAI SDK, built-in, no user key needed)
+- 2026-02-08: Removed Anthropic API key fields from Onboarding and Settings pages
+- 2026-02-08: Updated ai.js service to use OpenAI SDK with gpt-5.2 model
 - 2026-02-08: Initial project build from documentation specs
