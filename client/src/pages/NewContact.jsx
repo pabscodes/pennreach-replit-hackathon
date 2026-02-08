@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import {
   Upload, FileText, Loader2, Search, Sparkles, Copy, RefreshCw,
-  Save, CheckCircle, AlertCircle, X
+  Save, CheckCircle, AlertCircle, X, Image, Mail, Send, Calendar
 } from 'lucide-react';
 
 const GOALS = [
@@ -13,12 +13,25 @@ const GOALS = [
   { value: 'industry_info', label: 'Industry Info' },
 ];
 
+function getFileIcon(file) {
+  if (file.type === 'application/pdf') return FileText;
+  if (file.type.startsWith('image/')) return Image;
+  return FileText;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
 export default function NewContact() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
   const [profileText, setProfileText] = useState('');
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [contact, setContact] = useState(null);
 
@@ -37,8 +50,76 @@ export default function NewContact() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [gmailStatus, setGmailStatus] = useState({ configured: false, connected: false });
+  const [creatingDraft, setCreatingDraft] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [gmailDraftId, setGmailDraftId] = useState(null);
+
+  const [calendarSlots, setCalendarSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  useEffect(() => {
+    api.get('/api/gmail/status').then(setGmailStatus).catch(() => {});
+  }, []);
+
+  const loadCalendarSlots = async () => {
+    setLoadingSlots(true);
+    try {
+      const data = await api.get('/api/calendar/free-slots?days=7');
+      if (data.slots) {
+        setCalendarSlots(data.slots);
+      }
+    } catch (err) {
+      // silently fail
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const addFiles = useCallback((newFiles) => {
+    const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    const validFiles = Array.from(newFiles).filter(f => validTypes.includes(f.type));
+    if (validFiles.length < newFiles.length) {
+      setError('Some files were skipped — only PDF and image files are accepted');
+      setTimeout(() => setError(''), 3000);
+    }
+    setFiles(prev => [...prev, ...validFiles]);
+  }, []);
+
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      addFiles(e.dataTransfer.files);
+    }
+  }, [addFiles]);
+
+  const handleFileSelect = (e) => {
+    if (e.target.files?.length > 0) {
+      addFiles(e.target.files);
+    }
+    e.target.value = '';
+  };
+
   const handleParse = async () => {
-    if (!profileText.trim() && !file) {
+    if (!profileText.trim() && files.length === 0) {
       setError('Please paste profile text or upload a file');
       return;
     }
@@ -47,7 +128,9 @@ export default function NewContact() {
     setParsing(true);
     try {
       const formData = new FormData();
-      if (file) formData.append('file', file);
+      for (const file of files) {
+        formData.append('files', file);
+      }
       if (profileText.trim()) formData.append('text', profileText);
 
       const data = await api.upload('/api/contacts/parse', formData);
@@ -91,6 +174,7 @@ export default function NewContact() {
         availability,
       });
       setDraft(data.draft);
+      setGmailDraftId(null);
       setSuccess('Draft generated!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -106,6 +190,53 @@ export default function NewContact() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCreateGmailDraft = async () => {
+    if (!draft) return;
+    setCreatingDraft(true);
+    setError('');
+    try {
+      const data = await api.post('/api/gmail/create-draft', {
+        to: contact?.workEmail || '',
+        subject: draft.subject,
+        body: draft.body,
+      });
+      setGmailDraftId(data.draftId);
+      setSuccess('Gmail draft created! Check your Drafts folder.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreatingDraft(false);
+    }
+  };
+
+  const handleSendViaGmail = async () => {
+    if (!draft) return;
+    if (!contact?.workEmail) {
+      setError('Recipient email is required to send. Find the email first.');
+      return;
+    }
+    setSendingEmail(true);
+    setError('');
+    try {
+      if (gmailDraftId) {
+        await api.post('/api/gmail/send', { draftId: gmailDraftId });
+      } else {
+        await api.post('/api/gmail/send', {
+          to: contact.workEmail,
+          subject: draft.subject,
+          body: draft.body,
+        });
+      }
+      setSuccess('Email sent via Gmail!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const handleSave = async () => {
@@ -132,6 +263,10 @@ export default function NewContact() {
 
   const updateContactField = (field, value) => {
     setContact((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const insertSlot = (slotLabel) => {
+    setAvailability(prev => prev ? prev + ', ' + slotLabel : slotLabel);
   };
 
   const hooksArray = contact?.hooks
@@ -175,41 +310,62 @@ export default function NewContact() {
             />
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Or Upload File (PDF/Image)</label>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
-              >
-                {file ? (
-                  <div className="flex items-center justify-center gap-2 text-sm text-slate-700">
-                    <FileText className="w-4 h-4" />
-                    {file.name}
-                    <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="text-slate-400 hover:text-red-500">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Or Upload Files (PDF/Image)</label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                isDragOver
+                  ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
+                  : 'border-slate-300 hover:border-primary hover:bg-primary/5'
+              }`}
+            >
+              <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragOver ? 'text-primary' : 'text-slate-400'}`} />
+              <p className={`text-sm font-medium ${isDragOver ? 'text-primary' : 'text-slate-600'}`}>
+                {isDragOver ? 'Drop files here' : 'Drag & drop files here, or click to browse'}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">PDF, PNG, JPEG, WebP — multiple files supported</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,image/png,image/jpeg,image/webp"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+
+          {files.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">{files.length} file{files.length > 1 ? 's' : ''} selected</p>
+              {files.map((file, index) => {
+                const IconComp = getFileIcon(file);
+                return (
+                  <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <IconComp className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span className="text-sm text-slate-700 truncate">{file.name}</span>
+                      <span className="text-xs text-slate-400 shrink-0">{formatFileSize(file.size)}</span>
+                    </div>
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="text-slate-400 hover:text-red-500 transition-colors shrink-0 ml-2"
+                    >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  <div className="text-sm text-slate-500">
-                    <Upload className="w-5 h-5 mx-auto mb-1" />
-                    Click to browse
-                  </div>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,image/png,image/jpeg"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="hidden"
-              />
+                );
+              })}
             </div>
-          </div>
+          )}
 
           <button
             onClick={handleParse}
-            disabled={parsing || (!profileText.trim() && !file)}
+            disabled={parsing || (!profileText.trim() && files.length === 0)}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
           >
             {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -307,7 +463,8 @@ export default function NewContact() {
               </button>
               {contact.workEmail && (
                 <span className="text-sm text-slate-600">
-                  📧 {contact.workEmail}
+                  <Mail className="w-3.5 h-3.5 inline mr-1" />
+                  {contact.workEmail}
                   {emailResult?.confidence && (
                     <span className="ml-1 text-xs text-slate-400">({emailResult.confidence}% confidence)</span>
                   )}
@@ -348,7 +505,19 @@ export default function NewContact() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Availability</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-700">Availability</label>
+                  {gmailStatus.connected && (
+                    <button
+                      onClick={loadCalendarSlots}
+                      disabled={loadingSlots}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-dark font-medium"
+                    >
+                      {loadingSlots ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
+                      Load from Calendar
+                    </button>
+                  )}
+                </div>
                 <textarea
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value)}
@@ -356,6 +525,22 @@ export default function NewContact() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none text-sm"
                   placeholder="e.g., Tue 2-4 PM, Thu 10-12 PM EST"
                 />
+                {calendarSlots.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-500 mb-1">Click a slot to add it:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {calendarSlots.slice(0, 12).map((slot, i) => (
+                        <button
+                          key={i}
+                          onClick={() => insertSlot(slot.label)}
+                          className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                        >
+                          {slot.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <button
                 onClick={handleGenerateDraft}
@@ -406,6 +591,29 @@ export default function NewContact() {
                     {copied ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                     {copied ? 'Copied!' : 'Copy to Clipboard'}
                   </button>
+
+                  {gmailStatus.connected && (
+                    <>
+                      <button
+                        onClick={handleCreateGmailDraft}
+                        disabled={creatingDraft}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {creatingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                        Create Gmail Draft
+                      </button>
+                      <button
+                        onClick={handleSendViaGmail}
+                        disabled={sendingEmail || !contact?.workEmail}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100 transition-colors disabled:opacity-50 text-sm"
+                        title={!contact?.workEmail ? 'Find recipient email first' : ''}
+                      >
+                        {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Send via Gmail
+                      </button>
+                    </>
+                  )}
+
                   <button
                     onClick={handleSave}
                     disabled={saving}
@@ -415,6 +623,9 @@ export default function NewContact() {
                     Save
                   </button>
                 </div>
+                {gmailDraftId && (
+                  <p className="text-xs text-green-600">Gmail draft created (ID: {gmailDraftId})</p>
+                )}
               </div>
             </div>
           )}

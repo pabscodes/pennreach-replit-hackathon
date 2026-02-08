@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../lib/api';
-import { Loader2, Save, Key, User, Mail, Clock, CheckCircle } from 'lucide-react';
+import { Loader2, Save, Key, User, Mail, Clock, CheckCircle, Calendar, ExternalLink, X } from 'lucide-react';
 
 const SCHOOLS = [
   'Wharton MBA 2027',
@@ -56,9 +56,77 @@ export default function Settings() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [gmailStatus, setGmailStatus] = useState({ configured: false, connected: false, email: null });
+  const [calendarStatus, setCalendarStatus] = useState({ configured: false, connected: false });
+  const [loadingGmail, setLoadingGmail] = useState(true);
+  const [disconnecting, setDisconnecting] = useState(false);
+
   const showSuccess = (msg) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const fetchGmailStatus = useCallback(async () => {
+    try {
+      const data = await api.get('/api/gmail/status');
+      setGmailStatus(data);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const fetchCalendarStatus = useCallback(async () => {
+    try {
+      const data = await api.get('/api/calendar/status');
+      setCalendarStatus(data);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    Promise.all([fetchGmailStatus(), fetchCalendarStatus()]).finally(() => setLoadingGmail(false));
+  }, [fetchGmailStatus, fetchCalendarStatus]);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        fetchGmailStatus();
+        fetchCalendarStatus();
+        showSuccess('Google account connected successfully!');
+      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
+        setError(event.data.error || 'Failed to connect Google account');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [fetchGmailStatus, fetchCalendarStatus]);
+
+  const handleConnectGoogle = async () => {
+    try {
+      const data = await api.get('/api/gmail/auth-url');
+      if (!data.configured) {
+        setError('Google OAuth is not configured. Please add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI to your environment variables.');
+        return;
+      }
+      window.open(data.url, 'google-auth', 'width=500,height=700,left=200,top=100');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setDisconnecting(true);
+    try {
+      await api.post('/api/gmail/disconnect');
+      setGmailStatus({ configured: true, connected: false, email: null });
+      setCalendarStatus({ configured: true, connected: false });
+      showSuccess('Google account disconnected');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDisconnecting(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -127,7 +195,10 @@ export default function Settings() {
       <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError('')}><X className="w-4 h-4" /></button>
+        </div>
       )}
       {success && (
         <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center gap-2">
@@ -278,13 +349,81 @@ export default function Settings() {
         <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <Mail className="w-5 h-5 text-primary" /> Gmail Integration
         </h2>
-        <p className="text-sm text-slate-500 mb-4">Connect your Gmail to create drafts directly in your inbox.</p>
-        <button
-          disabled
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-400 rounded-lg font-medium text-sm cursor-not-allowed"
-        >
-          Connect Gmail (Coming Soon)
-        </button>
+        <p className="text-sm text-slate-500 mb-4">Connect your Gmail to create drafts and send emails directly from PennReach.</p>
+
+        {loadingGmail ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" /> Checking connection...
+          </div>
+        ) : gmailStatus.connected ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-green-700">
+                Connected{gmailStatus.email ? ` as ${gmailStatus.email}` : ''}
+              </span>
+            </div>
+            <button
+              onClick={handleDisconnectGoogle}
+              disabled={disconnecting}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg font-medium hover:bg-red-100 transition-colors disabled:opacity-50 text-sm"
+            >
+              {disconnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+              Disconnect Gmail
+            </button>
+          </div>
+        ) : gmailStatus.configured ? (
+          <button
+            onClick={handleConnectGoogle}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
+          >
+            <ExternalLink className="w-4 h-4" /> Connect Gmail
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
+              Google OAuth is not configured. To enable Gmail integration, add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI to your environment variables.
+            </div>
+            <button
+              disabled
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-400 rounded-lg font-medium text-sm cursor-not-allowed"
+            >
+              Connect Gmail (Not Configured)
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-primary" /> Google Calendar
+        </h2>
+        <p className="text-sm text-slate-500 mb-4">Connect Google Calendar to automatically find free meeting slots for outreach emails.</p>
+
+        {loadingGmail ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" /> Checking connection...
+          </div>
+        ) : calendarStatus.connected ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-green-700">Google Calendar connected</span>
+            </div>
+            <p className="text-xs text-slate-500">Calendar is connected via the same Google account as Gmail. Disconnect Gmail above to disconnect Calendar.</p>
+          </div>
+        ) : calendarStatus.configured ? (
+          <button
+            onClick={handleConnectGoogle}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
+          >
+            <ExternalLink className="w-4 h-4" /> Connect Google Calendar
+          </button>
+        ) : (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
+            Google OAuth is not configured. Calendar integration shares the same Google OAuth setup as Gmail.
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
